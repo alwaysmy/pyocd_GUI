@@ -48,7 +48,7 @@ import fonts;
 namespace fonts.德意黑{ 
     family = ..fonts.addFamily($"~/lib/fonts/.res/得意黑.ttf") 
 }
-
+import win.dlg.message;
 //import fonts.得意黑;
 
 /*
@@ -187,7 +187,23 @@ var updateDaplist=function(){
 		//
 		mainForm.DAP_combobox.items = probenamelist;
 		//选择第一个显示出来
-		mainForm.DAP_combobox.selectString(probenamelist[1]);
+		if(table.count(probenamelist)>=3)
+		{
+			//有多于两个的dap就判断一下是不是有Segger 3rd party CMSIS-DAP 由于一般不会连着出现这个，所以如果是segger，没有遍历，直接选择下一个。
+			if(probenamelist[2]=="Segger 3rd party CMSIS-DAP")
+			{
+				mainForm.DAP_combobox.selectString(probenamelist[3]);
+			}
+			else {
+				mainForm.DAP_combobox.selectString(probenamelist[2]);
+			}
+			
+		}
+		else {
+			mainForm.DAP_combobox.selectString(probenamelist[2]);//总共就一项就只显示第一个（前面两个不是型号）
+		}
+			
+		
 		
 	}
 }
@@ -251,6 +267,39 @@ var updateTargetlist=function(){
 	}
 }
 
+//在点击执行相关操作之后统一调用这个禁用其他执行功能并提示正在下载/擦除/复位/执行中
+var switchBtnStatus = function(disabled,showString){
+		//禁用下载按钮
+/*
+		mainForm.download_btn.disabled=disabled;
+		mainForm.erase_btn.disabled=disabled;
+		mainForm.rst_button.disabled= disabled;
+		mainForm.cmdexecBtn.disabled = disabled;
+*/
+		if(disabled==true)
+		{
+		mainForm.download_btn.disabledText = {"✶";"✸";"✹";"✺";"✹";"✷";text=showString};
+		mainForm.erase_btn.disabledText = {"✶";"✸";"✹";"✺";"✹";"✷";text=showString};
+		mainForm.rst_button.disabledText = {"✶";"✸";"✹";"✺";"✹";"✷";text=showString};
+		mainForm.cmdexecBtn.disabledText = {"✶";"✸";"✹";"✺";"✹";"✷";text=showString};
+		//使用见范例 高级图像控件 动画文字图标
+		}
+		elseif(disabled==false){
+		mainForm.download_btn.disabledText = null;
+		mainForm.erase_btn.disabledText = null;
+		mainForm.rst_button.disabledText = null;
+		mainForm.cmdexecBtn.disabledText = null;
+		}
+		
+		else {
+		mainForm.download_btn.disabledText = null;
+		mainForm.erase_btn.disabledText = null;
+		mainForm.rst_button.disabledText = null;
+		mainForm.cmdexecBtn.disabledText = null;
+		}
+		
+
+}
 
 
 //随便写个通过名字查找uid的函数 不太好不过凑合用。
@@ -264,13 +313,15 @@ var getProbeUIDfromName = function(pbname){
 			}
 	}
 }
-
+// 下载按钮执行的函数
 mainForm.download_btn.oncommand = function(id,event){
 	
 	if(mainForm.DAP_combobox.text==null||mainForm.DAP_combobox.text=="")
 	{
-		win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		//win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		mainForm.msgInfo('检查仿真器连接,连接到电脑上后重试',1000);
 		updateDaplist();
+		return ;
 	}
 	//win.msgbox(prcs.readAll());
 	var pyocdcmd = "";
@@ -295,14 +346,25 @@ mainForm.download_btn.oncommand = function(id,event){
 			
 		mainForm.edit_cmd.text = (pyocdcmd);
 		var prcs = process.popen.cmd(pyocdcmd);
+		//禁用下载按钮
+		//mainForm.download_btn.disabled=true;
+		//switchBtnStatus(true,"下载中");
+		//为了避免bug导致卡死。。这里把阻塞操作换成跳出提示框
+		mainForm.msgOk('开始下载...',500) 
 		var downloadTips = prcs.readAll();
 		mainForm.outputEdit.text=downloadTips;	
+		//switchBtnStatus(false,"下载中");
+		//输出滚动到底部方便观察结果
+		mainForm.outputEdit.vScroll();
+		//恢复下载按钮
+		//mainForm.download_btn.disabled=false;
+		
 	}
 	else {
-	win.msgbox("没写固件路径呢");
+	//win.msgbox("没写固件路径呢");
+	mainForm.msgErr('没写固件路径呢',500);
 	}
-	//输出滚动到底部方便观察结果
-	mainForm.outputEdit.vScroll();
+
 
 	
 	//--uid=UID 用这个参数来指定仿真器
@@ -312,9 +374,11 @@ mainForm.erase_btn.oncommand = function(id,event){
 	
 	if(mainForm.DAP_combobox.text==null||mainForm.DAP_combobox.text=="")
 	{
-		win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		//win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		mainForm.msgInfo('检查仿真器连接...',1000);
 		updateDaplist();
-		}
+		return ; 
+	}
 	//现在只做了全片擦除
 	var pyocdcmd = "";
 
@@ -326,11 +390,15 @@ mainForm.erase_btn.oncommand = function(id,event){
 
 	pyocdcmd = "pyocd erase --target "+targetName+" "+" --uid "+probeUid+" --chip"+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号
 	mainForm.edit_cmd.text = (pyocdcmd);
-	var prcs = process.popen.cmd(pyocdcmd);
+	//switchBtnStatus(true,"擦除中");
+	mainForm.msgOk('正在擦除...',500);
+	var prcs = process.popen.cmd(pyocdcmd);	
 	var eraseTips = prcs.readAll();
 	mainForm.outputEdit.text=eraseTips;	
+	//switchBtnStatus(false,"擦除中");//为什么擦除不做，因为有时候有bug会卡住。。。
 	//输出滚动到底部方便观察结果
 	mainForm.outputEdit.vScroll();
+	
 }
 
 
@@ -417,8 +485,10 @@ mainForm.updateDAPbtn.oncommand = function(id,event){
 mainForm.rst_button.oncommand = function(id,event){
 	if(mainForm.DAP_combobox.text==null||mainForm.DAP_combobox.text=="")
 	{
-		win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		//win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		mainForm.msgInfo('检查仿真器连接,连接到电脑上后点确定',1000);
 		updateDaplist();
+		return ;
 	}
 	//现在只做了硬件复位
 	var pyocdcmd = "";
@@ -432,6 +502,7 @@ mainForm.rst_button.oncommand = function(id,event){
 
 	pyocdcmd = "pyocd reset --target "+targetName+" "+" --uid "+probeUid+" -m "+resetMethod+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号
 	mainForm.edit_cmd.text = (pyocdcmd);
+	mainForm.msgOk('复位...',500);
 	var prcs = process.popen.cmd(pyocdcmd);
 	var rstTips = prcs.readAll();
 	mainForm.outputEdit.text=rstTips;	
@@ -443,7 +514,7 @@ mainForm.cmdexecBtn.oncommand = function(id,event){
 	//win.msgbox(mainForm.edit_cmd.text);
 
 	var pyocdcmd = mainForm.edit_cmd.text;
-
+	mainForm.msgOk('正在执行...',500);
 	var prcs = process.popen.cmd(pyocdcmd);
 	var execTips = prcs.readAll();
 	mainForm.outputEdit.text=execTips;	

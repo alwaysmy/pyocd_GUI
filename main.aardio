@@ -1,0 +1,637 @@
+import win.ui;
+import win.ui.menu;
+import fsys.dlg.dir;
+/*DSG{{*/
+mainForm = win.form(text="单片机下载器(pyocd前端)";right=756;bottom=369;acceptfiles=1)
+mainForm.add(
+DAP_combobox={cls="combobox";left=507;top=40;right=700;bottom=63;edge=1;items={};mode="dropdown";z=14};
+Rst_combobox={cls="combobox";left=92;top=296;right=182;bottom=319;aw=1;dl=1;edge=1;items={"default"};mode="dropdownlist";vscroll=1;z=24};
+TargetDevice_combobox={cls="combobox";left=94;top=40;right=288;bottom=63;aw=1;dl=1;edge=1;items={};mode="dropdown";vscroll=1;z=5};
+cmdexecBtn={cls="button";text="执行";left=699;top=171;right=739;bottom=209;dr=1;z=26};
+download_btn={cls="button";text="下载";left=94;top=99;right=166;bottom=147;font=LOGFONT(italic=255;h=-20;name='得意黑');z=4};
+edit_address={cls="edit";left=92;top=213;right=287;bottom=237;aw=1;dl=1;edge=1;z=9};
+edit_cmd={cls="edit";left=429;top=171;right=692;bottom=210;aw=1;dr=1;edge=1;multiline=1;vscroll=1;z=12};
+edit_firmware={cls="edit";left=94;top=70;right=288;bottom=93;acceptfiles=1;aw=1;dl=1;edge=1;z=18};
+eraseCheckbox={cls="checkbox";text="下载前擦除";left=92;top=184;right=183;bottom=206;dl=1;z=7};
+erase_btn={cls="button";text="擦除";left=216;top=99;right=288;bottom=147;font=LOGFONT(italic=255;h=-20;name='得意黑');z=8};
+firmware_btn={cls="plus";text="选择";left=289;top=67;right=348;bottom=89;align="left";autohscroll=false;color=3947580;dt=1;font=LOGFONT(h=-13);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome');padding={left=8}};iconText='\uF15B';notify=1;textPadding={left=25};z=22};
+groupbox={cls="groupbox";text="更多选项";left=20;top=168;right=357;bottom=338;aw=1;dl=1;edge=1;z=2};
+groupbox2={cls="groupbox";text="仿真器信息";left=429;top=21;right=739;bottom=154;aw=1;dr=1;edge=1;z=3};
+groupbox4={cls="groupbox";text="基本功能";left=20;top=21;right=357;bottom=154;aw=1;color=12632256;dl=1;edge=1;z=1};
+openDeviceManager={cls="plus";text="打开设备管理器";left=620;top=125;right=729;bottom=149;align="left";color=8388608;font=LOGFONT(h=-13);notify=1;textPadding={left=5};z=30};
+outputEdit={cls="edit";left=429;top=216;right=739;bottom=338;aw=1;dr=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=16};
+pyocdVersionLabel={cls="plus";text="pyocd：点一下";left=15;top=348;right=139;bottom=365;align="left";color=8388608;font=LOGFONT(h=-13);notify=1;textPadding={left=5};z=31};
+rst_button={cls="button";text="复位";left=216;top=296;right=288;bottom=319;z=19};
+rst_checkbox={cls="checkbox";left=211;top=186;right=271;bottom=202;z=20};
+speed_combobox={cls="combobox";left=507;top=70;right=602;bottom=93;edge=1;items={};mode="dropdown";z=29};
+static={cls="static";text=" 型号";left=33;top=43;right=69;bottom=63;dl=1;notify=1;transparent=1;z=6};
+static2={cls="static";text="起始地址";left=34;top=215;right=99;bottom=246;dl=1;transparent=1;z=10};
+static3={cls="static";text="复位方法";left=35;top=299;right=87;bottom=321;dl=1;transparent=1;z=25};
+static4={cls="static";text="可用DAP";left=448;top=44;right=502;bottom=62;transparent=1;z=13};
+static5={cls="static";text="执行结果";left=374;top=219;right=440;bottom=255;transparent=1;z=15};
+static6={cls="static";text="CLK速率";left=448;top=72;right=502;bottom=93;notify=1;transparent=1;z=27};
+static7={cls="static";text="kHz";left=609;top=73;right=644;bottom=91;notify=1;transparent=1;z=28};
+static_cmd={cls="static";text="生成命令";left=373;top=174;right=425;bottom=202;transparent=1;z=11};
+static_firmware={cls="static";text="固件路径
+";left=35;top=72;right=90;bottom=96;dl=1;transparent=1;z=17};
+targetlistbutton={cls="button";text="刷新列表";left=295;top=40;right=351;bottom=63;z=21};
+updateDAPbtn={cls="plus";text=" ";left=702;top=39;right=721;bottom=59;color=3947580;dt=1;font=LOGFONT(h=-13);iconStyle={font=LOGFONT(h=-13;name='FontAwesome')};iconText='\uF01E';notify=1;textPadding={left=25};z=23}
+)
+/*}}*/
+
+//import py3;
+//import py3.export.aardio;
+import process.popen;
+import win;
+import fonts.fontAwesome;
+import fonts;
+namespace fonts.德意黑{ 
+    family = ..fonts.addFamily($"~/lib/fonts/.res/得意黑.ttf") 
+}
+
+//import fonts.得意黑;
+
+/*
+var pyMain = py3.import("pyMain");
+var pyStr = pyMain.getHtml("https://www.aardio.com" );
+mainForm.edit_speed.print( tostring(pyStr) );
+
+mainForm.openDeviceManager.background = py3.export.aardio.getImage();
+*/
+
+//设置选择框提示语
+mainForm.TargetDevice_combobox.setCueBannerText("单片机型号");
+//这里应该使用pyocd读取可用列表，不过api还没搞定直接用返回值有点麻烦而且很慢所以先写几个常用的。
+/*
+mainForm.TargetDevice_combobox.add("GD32F350G8");
+mainForm.TargetDevice_combobox.add("RP2040"); 
+mainForm.TargetDevice_combobox.add("STM32F103C8"); 
+*/
+var targetItemData = {"GD32F350G8";"RP2040";"STM32F103C8";"GD32F103CB"}
+mainForm.TargetDevice_combobox.items = targetItemData; 
+//选择一个默认设置，这里放的是我常用的
+mainForm.TargetDevice_combobox.selectString("GD32F350G8");
+
+//复位选择框
+var rstMethodItemData = {"default";"sw";"hw";"sysresetreq";"vectreset";"emulated"}
+mainForm.Rst_combobox.items = rstMethodItemData;
+mainForm.Rst_combobox.selectString("default");
+var speedItemData = {"1000";"4000";"5000";"10000"};
+mainForm.speed_combobox.items = speedItemData;
+mainForm.speed_combobox.selectString("10000");
+
+mainForm.edit_firmware.setCueBannerText("可以拖进来");
+mainForm.edit_address.setCueBannerText("不指定就不填写");
+
+var pyocdcmd = "pyocd list";
+mainForm.edit_cmd.text = (pyocdcmd);
+
+var getPyocdVersion = function(){
+	var prcs = process.popen.cmd(`
+	pyocd -V
+	`)
+	var pyocdversion = prcs.readAll()
+	mainForm.pyocdVersionLabel.text = "pyocd:"+pyocdversion;
+}
+
+
+/*
+var pyocd_cmd = "";
+*/
+var pyocdCMD = {
+	string head; 
+	string target;
+	string probeUID;
+	string firmware;
+}
+
+var DAPinfolist=table.array();
+var probenamelist = table.array();
+var probeUIDlist = table.array();
+var targetInfo = {
+	string Name;
+	string Vendor;
+	string PartNumber;
+	string Families;
+	string Source;
+	}
+	
+//命令用结构的形式
+
+
+
+//显示结果
+
+
+var updateDaplist=function(){
+	mainForm.DAP_combobox.setCueBannerText("加载中...");
+	mainForm.DAP_combobox.items=null;
+	table.clear(probenamelist);
+	table.clear(probeUIDlist);
+	var prcs = process.popen.cmd(`
+	pyocd list
+	`)
+	var pyocdlist = prcs.readAll()
+	//显示一下结果
+	mainForm.outputEdit.text=pyocdlist
+	var linenums=0;
+	var probecodeindex;
+	var probenameindex;
+	var probeUidindex;
+	var probetargetindex;
+	var DAPinfo = {
+	 code;
+	 probeName;
+	 UID;
+	 target;
+	}
+
+
+	for tokens in string.lines(pyocdlist) {
+    	//tokens是一个数组，可以用 string.join 任意拼接数组中指定范围的元素实现批处理 tokens=n-m 的效果
+    	var linesStr = tostring(tokens);
+    	//首先找到分割点
+		if(linenums==0)
+		{
+			probecodeindex = string.indexOf(linesStr,"#   ");
+			probenameindex = string.indexOf(linesStr,"Probe/Board");
+			probeUidindex = string.indexOf(linesStr,"Unique ID");
+			probetargetindex = string.indexOf(linesStr,"Target");
+		}
+		elseif(linenums%2==0){
+			DAPinfo.code = string.slice(linesStr,3,probecodeindex+2);//string.trimright//偏移为3是因为这个读出来第一行比后面少两个空格
+			DAPinfo.probeName = string.trimright(string.slice(linesStr,probenameindex+2,probeUidindex+1));//
+			DAPinfo.UID = string.trimright(string.slice(linesStr,probeUidindex+2,probetargetindex+1));//string.trimright
+			DAPinfo.target = string.trimright(string.slice(linesStr,probetargetindex+2,string.len(linesStr)));//string.trimright
+			
+			//table.push(DAPinfolist,DAPinfo);
+			table.push(probeUIDlist,DAPinfo.UID);
+			table.push(probenamelist,DAPinfo.probeName);
+		}	
+		linenums++;
+	}
+/*
+	for(i=1;2;1){
+		
+		win.msgbox(DAPinfolist[i].probeName+":"+tostring(i));//有bug 数组值会出错。
+	}
+*/
+	
+
+	//最终显示结果
+	if(linenums<2)
+	{
+		mainForm.DAP_combobox.setCueBannerText("No available debug probes");
+	}
+	else {
+		//
+		mainForm.DAP_combobox.items = probenamelist;
+		//选择第一个显示出来
+		mainForm.DAP_combobox.selectString(probenamelist[1]);
+		
+	}
+}
+
+var updateTargetlist=function(){
+
+	var prcs = process.popen.cmd(`
+	pyocd list --target
+	`)
+	var targetliststr = prcs.readAll()
+	//这句测试用
+	mainForm.outputEdit.text=targetliststr
+	var linenums=0;
+	
+	var targetNameindex;
+	var targetVendorindex;
+	var targetPartNumberindex;
+	var targetFamiliesindex;
+	var targetSourceindex;
+	var targetlist=table.array();
+	
+	var targetNameLists = table.array();
+	var targetPartNumberLists = table.array();
+
+	for tokens in string.lines(targetliststr) {
+    	//tokens是一个数组，可以用 string.join 任意拼接数组中指定范围的元素实现批处理 tokens=n-m 的效果
+    	var linesStr = tostring(tokens);
+    	//首先找到分割点
+		if(linenums==0)
+		{
+			targetNameindex = string.indexOf(linesStr,"Name");
+			targetVendorindex = string.indexOf(linesStr,"Vendor");
+			targetPartNumberindex = string.indexOf(linesStr,"Part Number");
+			targetFamiliesindex = string.indexOf(linesStr,"Families");
+			targetSourceindex = string.indexOf(linesStr,"Source");
+		}
+		elseif(linenums>1)//这里行之间没有间隔 除了分割行 后面直接用即可
+		{
+			targetInfo.Name = string.trimright(string.slice(linesStr,targetNameindex+2,targetVendorindex+1));//string.trimright//偏移为3是因为这个读出来第一行比后面少两个空格
+			//targetInfo.probeName = string.trimright(string.slice(linesStr,probenameindex+2,probeUidindex+1));//
+			targetInfo.PartNumber = string.trimright(string.slice(linesStr,targetPartNumberindex+2,targetFamiliesindex+1));//string.trimright
+			//DAPinfo.target = string.trimright(string.slice(linesStr,probetargetindex+2,string.len(linesStr)));//string.trimright
+			//table.push(DAPinfolist,DAPinfo);
+			table.push(targetPartNumberLists,string.upper(targetInfo.Name));
+			//mainForm.DAP_combobox.add(DAPinfo.probeName);
+		}	
+		linenums++;
+	}
+	if(linenums<2)
+	{
+		mainForm.TargetDevice_combobox.setCueBannerText("error");
+	}
+	else {
+
+		targetItemData = targetPartNumberLists;//更新一下全局变量 避免后面自动补全的时候刷掉
+		//记录一下当前的值,免得刷掉了
+		var curtext = mainForm.TargetDevice_combobox.text;
+		//mainForm.TargetDevice_combobox.items=null;
+		mainForm.TargetDevice_combobox.items = targetItemData;
+		mainForm.TargetDevice_combobox.selectString(curtext);
+	}
+}
+
+
+
+//随便写个通过名字查找uid的函数 不太好不过凑合用。
+var getProbeUIDfromName = function(pbname){
+	for(k,v in probenamelist){
+		//win.msgbox("name"+v);
+		//win.msgbox("suoyin"+tostring(k));
+		if(v==pbname){
+			//win.msgbox("uid"+probeUIDlist[k]);
+			return probeUIDlist[k]; 
+			}
+	}
+}
+
+mainForm.download_btn.oncommand = function(id,event){
+	
+	if(mainForm.DAP_combobox.text==null||mainForm.DAP_combobox.text=="")
+	{
+		win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		updateDaplist();
+	}
+	//win.msgbox(prcs.readAll());
+	var pyocdcmd = "";
+	firmware_path = mainForm.edit_firmware.text;
+	targetName = mainForm.TargetDevice_combobox.text;
+	probename = mainForm.DAP_combobox.text;
+	
+	probeUid = getProbeUIDfromName(probename);
+	connectSpeed = mainForm.speed_combobox.text+"k";
+	targetAddress = mainForm.edit_address.text
+	//startAddress=0;
+	if(firmware_path!="")
+	{
+		pyocdcmd = "pyocd flash --target "+targetName+" "+""""+firmware_path+""""+" --uid "+probeUid+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号
+		
+		if(mainForm.eraseCheckbox.checked){
+			pyocdcmd = pyocdcmd+" -e "+"chip";//目前只实现了一种擦除
+		}
+		if(targetAddress!=null&&targetAddress!=""){
+			pyocdcmd = pyocdcmd+" -a "+targetAddress;
+		}
+			
+		mainForm.edit_cmd.text = (pyocdcmd);
+		var prcs = process.popen.cmd(pyocdcmd);
+		var downloadTips = prcs.readAll();
+		mainForm.outputEdit.text=downloadTips;	
+	}
+	else {
+	win.msgbox("没写固件路径呢");
+	}
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+
+	
+	//--uid=UID 用这个参数来指定仿真器
+}
+
+mainForm.erase_btn.oncommand = function(id,event){
+	
+	if(mainForm.DAP_combobox.text==null||mainForm.DAP_combobox.text=="")
+	{
+		win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		updateDaplist();
+		}
+	//现在只做了全片擦除
+	var pyocdcmd = "";
+
+	targetName = mainForm.TargetDevice_combobox.text;
+	probename = mainForm.DAP_combobox.text;
+	probeUid = getProbeUIDfromName(probename);
+	connectSpeed = mainForm.speed_combobox.text+"k";
+	//startAddress=0;
+
+	pyocdcmd = "pyocd erase --target "+targetName+" "+" --uid "+probeUid+" --chip"+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号
+	mainForm.edit_cmd.text = (pyocdcmd);
+	var prcs = process.popen.cmd(pyocdcmd);
+	var eraseTips = prcs.readAll();
+	mainForm.outputEdit.text=eraseTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+}
+
+
+//填写型号的时候自动补全
+mainForm.TargetDevice_combobox.onEditChange = function(id,event){
+	var text = string.upper(mainForm.TargetDevice_combobox.text);
+    var items = table.filter( targetItemData, lambda(v) string.startWith(v,text) ); 
+    mainForm.TargetDevice_combobox.autoComplete(items); 
+}
+
+
+
+mainForm.targetlistbutton.oncommand = function(id,event){
+	//刷新可用器件列表
+	//点击就会手动刷新一次可用器件列表  其实可以用pyocd json --target来输出得到json格式的数据更好解析。。。
+	var pyocdcmd = "pyocd list --target"
+	mainForm.edit_cmd.text = (pyocdcmd);
+	updateTargetlist();
+/*
+	var prcs = process.popen.cmd(`
+	pyocd list --target
+	`)
+	mainForm.edit_speed.text = prcs.readAll();
+*/
+/*
+	pyocd_cmd = "pyocd "+"-t";
+	mainForm.edit_cmd.text = pyocd_cmd;
+*/
+}
+
+mainForm.firmware_btn.skin(
+	background = { 
+		hover = "/res/images/btn-hover.png";
+		focus = "/res/images/btn-focus.jpg";
+		active = "/res/images/btn-active.png";
+		disabled = "/res/images/btn-disabled.png"; 
+	}
+		color={
+		active=0xee00ee00;
+		default=0xFF3C3C3C;
+		disabled=0xFF6D6D6D;
+		hover=0xeeee0000
+	}
+)
+
+mainForm.firmware_btn.oncommand = function(id,event){
+	var path = fsys.dlg.open('所有文件|*.*|ELF文件|*.elf|BIN文件|*.bin|Intel hex文件|*.hex|AXF文件|*.axf|',,,mainForm);
+	if(path){
+		mainForm.edit_firmware.text = path;
+		}
+}
+
+//添加一个拖动文件获取路径的回调（先打开允许拖动文件的属性）
+mainForm.edit_firmware.wndproc = function(hwnd,message,wParam,lParam){
+	
+	//无返回值则继续调用默认回调函数
+	select(message) {
+    	case 0x233/*_WM_DROPFILES*/{
+            	mainForm.edit_firmware.text = win.getDropFile(wParam )[1];   
+    	}
+	}
+}
+
+mainForm.updateDAPbtn.skin(
+	background = { 
+		hover = "/res/images/btn-hover.png";
+		focus = "/res/images/btn-focus.jpg";
+		active = "/res/images/btn-active.png";
+		disabled = "/res/images/btn-disabled.png"; 
+	}
+	color={
+		active=0xee00ee00;
+		default=0xFF3C3C3C;
+		disabled=0xFF6D6D6D;
+		hover=0xeeee0000
+	}
+)
+mainForm.updateDAPbtn.oncommand = function(id,event){
+	var pyocdcmd = "pyocd list"
+	mainForm.edit_cmd.text = (pyocdcmd);
+	updateDaplist();
+}
+
+mainForm.rst_button.oncommand = function(id,event){
+	if(mainForm.DAP_combobox.text==null||mainForm.DAP_combobox.text=="")
+	{
+		win.msgbox("检查仿真器连接,连接到电脑上后点确定");
+		updateDaplist();
+	}
+	//现在只做了硬件复位
+	var pyocdcmd = "";
+
+	targetName = mainForm.TargetDevice_combobox.text;
+	probename = mainForm.DAP_combobox.text;
+	probeUid = getProbeUIDfromName(probename);
+	resetMethod = mainForm.Rst_combobox.text;
+	connectSpeed = mainForm.speed_combobox.text+"k";
+	//startAddress=0;
+
+	pyocdcmd = "pyocd reset --target "+targetName+" "+" --uid "+probeUid+" -m "+resetMethod+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号
+	mainForm.edit_cmd.text = (pyocdcmd);
+	var prcs = process.popen.cmd(pyocdcmd);
+	var rstTips = prcs.readAll();
+	mainForm.outputEdit.text=rstTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+}
+
+mainForm.cmdexecBtn.oncommand = function(id,event){
+	//win.msgbox(mainForm.edit_cmd.text);
+
+	var pyocdcmd = mainForm.edit_cmd.text;
+
+	var prcs = process.popen.cmd(pyocdcmd);
+	var execTips = prcs.readAll();
+	mainForm.outputEdit.text=execTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+}
+
+mainForm.popmenu = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.popmenu.add('&更新pack',function(id){
+	//在下面输入菜单响应代码
+	var pyocdcmd = "pyocd pack update";
+
+	//targetName = mainForm.TargetDevice_combobox.text;
+	//probename = mainForm.DAP_combobox.text;
+	//probeUid = getProbeUIDfromName(probename);
+	//connectSpeed = mainForm.speed_combobox.text+"k";
+	//startAddress=0;
+
+	//pyocdcmd = "pyocd gdbserver -t "+targetName+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号  +" --uid "+probeUid
+	mainForm.edit_cmd.text = pyocdcmd;	
+	
+	var prcs = process.popen.cmd(pyocdcmd);
+	var execTips = prcs.readAll();
+	mainForm.outputEdit.text=execTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+});
+mainForm.popmenu.add('&显示已经安装的pack',function(id){
+	//在下面输入菜单响应代码
+	var pyocdcmd = "pyocd pack show";
+
+	mainForm.edit_cmd.text = pyocdcmd;	
+	
+	var prcs = process.popen.cmd(pyocdcmd);
+	var execTips = prcs.readAll();
+	mainForm.outputEdit.text=execTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+});
+mainForm.popmenu.add();//分隔线
+mainForm.popmenu.add('&查找pack(查找填写型号)',function(id){
+	//在下面输入菜单响应代码
+	var pyocdcmd = "pyocd pack find ";
+
+	targetName = mainForm.TargetDevice_combobox.text;
+	
+
+	pyocdcmd = pyocdcmd+targetName;//双引号内部的两个双引号表示的是一个双引号  +" --uid "+probeUid
+	mainForm.edit_cmd.text = pyocdcmd;	
+	
+	var prcs = process.popen.cmd(pyocdcmd);
+	var execTips = prcs.readAll();
+	mainForm.outputEdit.text=execTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+});
+mainForm.popmenu.add('&安装pack(查找安装型号)',function(id){
+	//在下面输入菜单响应代码
+	var pyocdcmd = "pyocd pack install ";
+
+	targetName = mainForm.TargetDevice_combobox.text;
+	
+
+	pyocdcmd = pyocdcmd+targetName;//双引号内部的两个双引号表示的是一个双引号  +" --uid "+probeUid
+	mainForm.edit_cmd.text = pyocdcmd;	
+	
+	var prcs = process.popen.cmd(pyocdcmd);
+	var execTips = prcs.readAll();
+	mainForm.outputEdit.text=execTips;	
+	//输出滚动到底部方便观察结果
+	mainForm.outputEdit.vScroll();
+});
+mainForm.popmenu.add();//分隔线
+mainForm.popmenu.add();//分隔线
+mainForm.popmenu.add('&清除已安装pack(不执行)',function(id){
+	//在下面输入菜单响应代码
+	var pyocdcmd = "pyocd pack clean";
+
+	mainForm.edit_cmd.text = pyocdcmd;	
+	
+	mainForm.outputEdit.text=execTips;	
+
+});
+//mainForm.popmenu.add('&exit',function(id){ mainForm.close() })
+
+
+mainForm.popmenu_gdb = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.popmenu_gdb.add('&打开GDB server命令（不执行）',function(id){
+	//在下面输入菜单响应代码
+	var pyocdcmd = "";
+
+	targetName = mainForm.TargetDevice_combobox.text;
+	probename = mainForm.DAP_combobox.text;
+	probeUid = getProbeUIDfromName(probename);
+	connectSpeed = mainForm.speed_combobox.text+"k";
+	//startAddress=0;
+
+	pyocdcmd = "pyocd gdbserver -t "+targetName+" -f "+connectSpeed;//双引号内部的两个双引号表示的是一个双引号  +" --uid "+probeUid
+	mainForm.edit_cmd.text = pyocdcmd;	
+});
+
+mainForm.popmenu_else = win.ui.popmenu(mainForm);//创建弹出菜单
+mainForm.popmenu_else.add('&信息',function(id){
+	mainForm.outputEdit.text="";
+	var myinfo = 
+"这是一个pyocd前端,
+所以要自己安装pyocd, 
+测过的版本有0.34.3";
+	mainForm.outputEdit.print(myinfo);
+	//win.msgboxTest("看执行结果框","我不知道应该把这个放到哪里《·_·》");
+	//在下面输入菜单响应代码
+
+});
+var menu = win.ui.menu(mainForm);//创建主菜单
+menu.add('包管理',mainForm.popmenu)
+menu.add('Gdb server相关命令',mainForm.popmenu_gdb)
+menu.add('信息',mainForm.popmenu_else)
+
+
+
+mainForm.openDeviceManager.skin(
+	background = { 
+		hover = "/res/images/btn-hover.png";
+		focus = "/res/images/btn-focus.jpg";
+		active = "/res/images/btn-active.png";
+		disabled = "/res/images/btn-disabled.png"; 
+	}
+	color={
+		active=0xee00Fee00;
+		default=0xFF000080;
+		disabled=0xFF6D6D6D;
+		hover=0xeeee0000
+	}
+)
+mainForm.openDeviceManager.oncommand = function(id,event){
+		import sys.device;
+	sys.device.manager();
+}
+
+//反正主要功能是拖固件 整个窗口都支持拖放文件好了，直接填写到路径编辑栏里面
+mainForm.wndproc = function(hwnd,message,wParam,lParam){
+	select( message ) { 
+/**
+		case 0x205/*_WM_RBUTTONUP*/{
+			//鼠标右键弹起,下面获取坐标
+			var x,y = win.getMessagePos(lParam);
+			
+		}
+**/
+		case 0x233/*_WM_DROPFILES*/{
+           mainForm.edit_firmware.text = win.getDropFile(wParam )[1];   
+    	}
+		else{
+			
+		}
+	}
+	//无返回值则继续调用默认回调函数
+}
+
+mainForm.pyocdVersionLabel.skin(
+	background = { 
+		hover = "/res/images/btn-hover.png";
+		focus = "/res/images/btn-focus.jpg";
+		active = "/res/images/btn-active.png";
+		disabled = "/res/images/btn-disabled.png"; 
+	}
+)
+mainForm.pyocdVersionLabel.oncommand = function(id,event){
+	
+	win.msgboxTest("点了也没啥用（·_>·）","没啥用的对话框");
+	getPyocdVersion();
+}
+
+//创建工作线程
+/*
+thread.invoke( 
+		//线程启动函数
+		function(mainForm){
+			mainForm.DAP_combobox.setCueBannerText("加载中...");
+			updateDaplist();
+			getPyocdVersion();
+			//mainForm.button.disabledText = null;
+			
+		},mainForm //窗口对象可作为参数传入工作线程
+	)
+*/
+updateDaplist();
+//getPyocdVersion();
+mainForm.show();
+
+return win.loopMessage();

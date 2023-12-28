@@ -14,7 +14,7 @@ edit_cmd={cls="edit";left=429;top=171;right=692;bottom=210;aw=1;dr=1;edge=1;mult
 edit_firmware={cls="edit";left=94;top=70;right=288;bottom=93;acceptfiles=1;aw=1;dl=1;edge=1;z=18};
 eraseCheckbox={cls="checkbox";text="下载前擦除";left=92;top=184;right=183;bottom=206;dl=1;z=7};
 erase_btn={cls="button";text="擦除";left=216;top=99;right=288;bottom=147;font=LOGFONT(italic=255;h=-20;name='得意黑');z=8};
-firmware_btn={cls="plus";text="选择";left=289;top=67;right=348;bottom=89;align="left";autohscroll=false;color=3947580;dt=1;font=LOGFONT(h=-13);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome');padding={left=8}};iconText='\uF15B';notify=1;textPadding={left=25};z=22};
+firmware_btn={cls="plus";text="选择";left=289;top=67;right=348;bottom=89;align="left";autohscroll=false;color=3947580;font=LOGFONT(h=-13);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome');padding={left=8}};iconText='\uF15B';notify=1;textPadding={left=25};z=22};
 groupbox={cls="groupbox";text="更多选项";left=20;top=168;right=357;bottom=338;aw=1;dl=1;edge=1;z=2};
 groupbox2={cls="groupbox";text="仿真器信息";left=429;top=21;right=739;bottom=154;aw=1;dr=1;edge=1;z=3};
 groupbox4={cls="groupbox";text="基本功能";left=20;top=21;right=357;bottom=154;aw=1;color=12632256;dl=1;edge=1;z=1};
@@ -35,7 +35,7 @@ static_cmd={cls="static";text="生成命令";left=373;top=174;right=425;bottom=2
 static_firmware={cls="static";text="固件路径
 ";left=35;top=72;right=90;bottom=96;dl=1;transparent=1;z=17};
 targetlistbutton={cls="button";text="刷新列表";left=295;top=40;right=351;bottom=63;z=21};
-updateDAPbtn={cls="plus";text=" ";left=702;top=39;right=721;bottom=59;color=3947580;dt=1;font=LOGFONT(h=-13);iconStyle={font=LOGFONT(h=-13;name='FontAwesome')};iconText='\uF01E';notify=1;textPadding={left=25};z=23}
+updateDAPbtn={cls="plus";text=" ";left=702;top=41;right=721;bottom=61;color=3947580;font=LOGFONT(h=-13);iconStyle={font=LOGFONT(h=-13;name='FontAwesome')};iconText='\uF01E';notify=1;textPadding={left=25};z=23}
 )
 /*}}*/
 
@@ -184,8 +184,9 @@ var updateDaplist=function(){
 		mainForm.DAP_combobox.setCueBannerText("No available debug probes");
 	}
 	else {
-		//
+		//TODO:部分dap会显示单片机型号，这时候就会有bug。。不过不影响使用
 		mainForm.DAP_combobox.items = probenamelist;
+		mainForm.DAP_combobox.selectString(probenamelist[2]);//总共就一项就只显示第一个（前面两个不是型号）
 		//选择第一个显示出来
 		if(table.count(probenamelist)>=3)
 		{
@@ -200,7 +201,7 @@ var updateDaplist=function(){
 			
 		}
 		else {
-			mainForm.DAP_combobox.selectString(probenamelist[2]);//总共就一项就只显示第一个（前面两个不是型号）
+			mainForm.DAP_combobox.selectString(probenamelist[1]);//总共就一项就只显示第一个（前面两个不是型号）
 		}
 			
 		
